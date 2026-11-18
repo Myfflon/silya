@@ -6,6 +6,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: feed-the-cat2-app   # имя твоей папки
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,4 +28,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: feed-the-cat-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: feed-the-cat2-app/android/app/build/outputs/apk/debug/app-debug.apk   # имя папки в начале пути
