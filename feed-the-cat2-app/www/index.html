@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#14161a"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png">
+<style>
+html,body{margin:0;overscroll-behavior:none}
+html{overflow:hidden;color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{min-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+</style>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&family=Unbounded:wght@600;800&display=swap">
+<title>Накорми кошку</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&family=Unbounded:wght@600;800&display=swap">
+<style>
+/* Layout: one portrait stage (3:4) with the cat photo as the playfield; glass HUD on top, glass cards for start and result at the bottom. */
+:root {
+  --bg: #e6e2dd;
+  --ink: #1e2024;
+  --muted: #5c6068;
+  --glass: rgba(255, 255, 255, 0.78);
+  --line: rgba(30, 32, 36, 0.14);
+  --accent: #ff5a3c;
+  --accent-ink: #ffffff;
+  --track: rgba(30, 32, 36, 0.14);
+  --font-display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --font-body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14161a; --ink: #f3efea; --muted: #a7abb3;
+    --glass: rgba(22, 24, 28, 0.78); --line: rgba(243, 239, 234, 0.16);
+    --track: rgba(243, 239, 234, 0.18); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14161a; --ink: #f3efea; --muted: #a7abb3;
+  --glass: rgba(22, 24, 28, 0.78); --line: rgba(243, 239, 234, 0.16);
+  --track: rgba(243, 239, 234, 0.18); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body);
+  min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.stage {
+  position: relative; aspect-ratio: 3 / 4;
+  width: min(100%, 560px, calc((100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) * 0.75));
+  border-radius: 22px; overflow: hidden; background: #8d8f93;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.22); user-select: none; -webkit-user-select: none;
+}
+canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.hud { position: absolute; inset: 10px 10px auto 10px; display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; pointer-events: none; }
+.pill {
+  background: var(--glass); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 999px; padding: 6px 12px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  font-weight: 800; font-size: 0.85rem; line-height: 1.2; white-space: nowrap;
+}
+.score { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; font-variant-numeric: tabular-nums; min-width: 4.2em; }
+.score small { font-family: var(--font-body); font-weight: 800; font-size: 0.7rem; color: var(--muted); margin-right: 6px; letter-spacing: 0.04em; text-transform: uppercase; }
+.timer { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.timer .track { flex: 1; min-width: 0; height: 8px; border-radius: 99px; background: var(--track); overflow: hidden; }
+.timer .fill { height: 100%; width: 100%; background: var(--accent); border-radius: 99px; transform-origin: left center; }
+.timer b { font-variant-numeric: tabular-nums; min-width: 2.2em; text-align: right; }
+.timer.low b { color: var(--accent); }
+.snd { pointer-events: auto; cursor: pointer; font-family: inherit; }
+.snd:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.combo { position: absolute; left: 10px; top: 54px; pointer-events: none; background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.card {
+  position: absolute; left: 12px; right: 12px; bottom: 12px; padding: 18px 18px 16px;
+  background: var(--glass); border: 1px solid var(--line); border-radius: 18px;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  display: grid; gap: 10px; justify-items: start;
+}
+.card h1, .card h2 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(1.25rem, 5.2vw, 1.7rem); line-height: 1.12; text-wrap: balance; }
+.card p { margin: 0; color: var(--muted); font-weight: 600; font-size: 0.95rem; line-height: 1.4; max-width: 46ch; }
+.key { display: flex; gap: 14px; flex-wrap: wrap; font-weight: 800; font-size: 0.9rem; }
+.key span { white-space: nowrap; }
+.btn {
+  font-family: var(--font-display); font-weight: 800; font-size: 0.95rem; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 12px 22px;
+  transition: transform 0.12s ease;
+}
+.btn:active { transform: scale(0.97); }
+.big { font-family: var(--font-display); font-weight: 800; font-size: clamp(2.4rem, 12vw, 3.6rem); line-height: 1; font-variant-numeric: tabular-nums; }
+.sub { font-weight: 800; font-size: 0.85rem; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.sign { font-weight: 800; font-size: 0.95rem; }
+.sign i { font-style: normal; color: var(--accent); }
+@media (max-width: 420px) { .pill { padding: 5px 10px; font-size: 0.8rem; } .card { padding: 14px; } }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+</style>
+
+</head><body>
+<main class="stage" id="stage">
+  <canvas id="c" width="720" height="960" role="img" aria-label="Кошка с открытым ртом ждёт, пока сверху упадёт рыбка"></canvas>
+
+  <div class="hud" id="hud" hidden>
+    <div class="pill score"><small>счёт</small><span id="score">0</span></div>
+    <div class="pill timer" id="timer"><div class="track"><div class="fill" id="fill"></div></div><b id="time">45</b></div>
+    <button class="pill snd" id="snd" type="button" aria-pressed="true">Звук</button>
+  </div>
+  <div class="pill combo" id="combo" hidden></div>
+
+  <section class="card" id="start">
+    <h1>Накорми кошку</h1>
+    <p>Сверху падают рыбки и курочка. Лови их миской и корми кошку. Лук и перец ей нельзя. Золотая рыбка стоит пять очков.</p>
+    <div class="key"><span>Тяни миску пальцем</span><span>Или тапай по еде</span><span>Стрелки ← →</span></div>
+    <button class="btn" id="go" type="button">Играть</button>
+  </section>
+
+  <section class="card" id="end" hidden>
+    <div class="sub">Накормлено на</div>
+    <div class="big" id="final">0</div>
+    <div class="sub" id="best"></div>
+    <p id="caption"></p>
+    <div class="sign" id="sign"></div>
+    <button class="btn" id="again" type="button">Ещё раз</button>
+  </section>
+</main>
+
+<script>
+(() => {
+  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  const W = 720, H = 960, MOUTH = { x: 323, y: 525 }, DURATION = 45;
+  const $ = id => document.getElementById(id);
+  const el = { hud: $('hud'), score: $('score'), time: $('time'), fill: $('fill'), timer: $('timer'), combo: $('combo'),
+    start: $('start'), end: $('end'), final: $('final'), best: $('best'), caption: $('caption'), sign: $('sign'), snd: $('snd') };
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const EMOJI = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+
+  const img = new Image(), img2 = new Image(); let imgOk = false, img2Ok = false;
+  img.onload = () => { imgOk = true; }; img.src = 'cat.jpg';
+  img2.onload = () => { img2Ok = true; }; img2.src = 'cat_closed.jpg';
+  try { document.fonts && document.fonts.load('800 40px Unbounded'); } catch (e) {}
+
+  const KINDS = [
+    { e: '🐟', pts: 1, w: 55 }, { e: '🍗', pts: 1, w: 18 }, { e: '🐠', pts: 5, w: 8, gold: true },
+    { e: '🧅', bad: true, w: 11 }, { e: '🌶️', bad: true, w: 8 }
+  ];
+  const YUM = ['ням!', 'мур!', 'вкусно!', 'ещё!', 'хрум!'], YUCK = ['фу!', 'бе!', 'фыр!'];
+  const CAPTIONS = [
+    [15, 'Кошка голодна и смотрит с укором. Миска почти пустая.'],
+    [40, 'Перекус засчитан. Кошка просит добавки.'],
+    [75, 'Кошка сыта и жмурится. Хороший вечер.'],
+    [120, 'Кошка довольна. Вас повысили до главного кормильца.'],
+    [Infinity, 'Легенда кухни. Кошка готова подписать контракт на всю жизнь.']
+  ];
+
+  let mode = 'idle', items = [], flying = [], pops = [], parts = [];
+  let score = 0, combo = 0, timeLeft = DURATION, spawnT = 0, clock = 0;
+  let chompT = 1, yuckT = 1, flash = 0, idleT = 1.5, open = 0;
+  const bowl = { x: W / 2, tx: W / 2, w: 190, y: H - 124, sq: 1 };
+  let best = 0; try { best = +localStorage.getItem('feed-cat2-best') || 0; } catch (e) {}
+  const keys = { l: false, r: false };
+
+  /* sound */
+  let ac = null, muted = false;
+  function sfx(f, d = 0.12, type = 'sine', v = 0.07, slide = 0) {
+    if (muted || !ac) return;
+    try {
+      const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+      o.type = type; o.frequency.setValueAtTime(f, t);
+      if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, f + slide), t + d);
+      g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + d + 0.02);
+    } catch (e) {}
+  }
+  el.snd.addEventListener('click', () => {
+    muted = !muted; el.snd.setAttribute('aria-pressed', String(!muted)); el.snd.textContent = muted ? 'Тихо' : 'Звук';
+  });
+
+  const mult = () => 1 + Math.min(2, Math.floor(combo / 5));
+  const clampX = x => Math.max(bowl.w / 2, Math.min(W - bowl.w / 2, x));
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+
+  function startGame() {
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume && ac.resume(); } catch (e) {}
+    items = []; flying = []; pops = []; parts = [];
+    score = 0; combo = 0; timeLeft = DURATION; spawnT = 0.4; chompT = 1; yuckT = 1; flash = 0;
+    bowl.x = bowl.tx = W / 2;
+    el.start.hidden = true; el.end.hidden = true; el.hud.hidden = false; el.combo.hidden = true;
+    el.score.textContent = '0'; mode = 'play';
+  }
+  function endGame() {
+    mode = 'over'; items = [];
+    const isBest = score > best;
+    if (isBest) { best = score; try { localStorage.setItem('feed-cat2-best', String(best)); } catch (e) {} }
+    el.final.textContent = score;
+    el.best.textContent = isBest && score > 0 ? 'Новый рекорд' : 'Рекорд: ' + best;
+    el.caption.textContent = CAPTIONS.find(c => score < c[0])[1];
+    el.sign.innerHTML = 'Подпись кошки: <i>лапа</i> 🐾';
+    el.hud.hidden = true; el.combo.hidden = true; el.end.hidden = false;
+    [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => sfx(f, 0.2, 'triangle', 0.07), i * 110));
+  }
+  $('go').addEventListener('click', startGame);
+  $('again').addEventListener('click', startGame);
+
+  function spawn() {
+    const p = 1 - timeLeft / DURATION;
+    let r = Math.random() * KINDS.reduce((s, k) => s + k.w, 0), k = KINDS[0];
+    for (const c of KINDS) { if ((r -= c.w) < 0) { k = c; break; } }
+    items.push({ k, x: 50 + Math.random() * (W - 100), y: -50, r: 36, vy: 250 + p * 240 + Math.random() * 70,
+      rot: (Math.random() - 0.5) * 0.6, vr: (Math.random() - 0.5) * 2.2 });
+  }
+  function pop(x, y, text, color) { pops.push({ x, y, text, color, life: 1 }); }
+  function sparkle(x, y, n, color) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, s = 80 + Math.random() * 180;
+      parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 60, life: 1, c: color });
+    }
+  }
+
+  function catchItem(it, byTap) {
+    items.splice(items.indexOf(it), 1);
+    if (it.k.bad) {
+      score = Math.max(0, score - 3); combo = 0; yuckT = 0; flash = 1;
+      pop(it.x, it.y - 10, pick(YUCK) + ' −3', '#ff4d4d'); sparkle(it.x, it.y, 8, '#ff6b6b');
+      sfx(150, 0.28, 'sawtooth', 0.08, -60);
+    } else {
+      const m = mult(); score += it.k.pts * m; combo++;
+      flying.push({ e: it.k.e, gold: it.k.gold, x0: it.x, y0: it.y, t: 0, dur: 0.38, x: it.x, y: it.y, m, pts: it.k.pts * m });
+      if (!byTap) bowl.sq = 0;
+      sfx(520 + Math.min(combo, 15) * 30, 0.1, 'triangle', 0.07, 200);
+    }
+    el.score.textContent = score;
+    const m2 = mult();
+    el.combo.hidden = combo < 2;
+    el.combo.textContent = (m2 > 1 ? '×' + m2 + ' · ' : '') + 'серия ' + combo;
+  }
+
+  /* input */
+  function toCanvas(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; }
+  cv.addEventListener('pointerdown', e => {
+    if (mode !== 'play') return;
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+    const p = toCanvas(e); let hit = null, bd = 1e9;
+    for (const it of items) { const d = Math.hypot(it.x - p.x, it.y - p.y); if (d < it.r * 1.5 && d < bd) { hit = it; bd = d; } }
+    if (hit) catchItem(hit, true); else bowl.tx = clampX(p.x);
+  });
+  cv.addEventListener('pointermove', e => { if (mode === 'play') bowl.tx = clampX(toCanvas(e).x); });
+  addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'a') keys.l = true;
+    if (e.key === 'ArrowRight' || e.key === 'd') keys.r = true;
+  });
+  addEventListener('keyup', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'a') keys.l = false;
+    if (e.key === 'ArrowRight' || e.key === 'd') keys.r = false;
+  });
+
+  /* update */
+  function update(dt) {
+    clock += dt;
+    chompT = Math.min(1, chompT + dt / 0.28); yuckT = Math.min(1, yuckT + dt / 0.5);
+    bowl.sq = Math.min(1, bowl.sq + dt / 0.22); flash = Math.max(0, flash - dt * 2.5);
+    if (mode === 'idle' || mode === 'over') { idleT -= dt; if (idleT <= 0) { chompT = 0; idleT = 2.2 + Math.random(); } }
+
+    if (mode === 'play') {
+      timeLeft -= dt;
+      const dir = (keys.r ? 1 : 0) - (keys.l ? 1 : 0);
+      if (dir) bowl.tx = clampX(bowl.tx + dir * 820 * dt);
+      spawnT -= dt;
+      if (spawnT <= 0) { spawn(); const p = 1 - timeLeft / DURATION; spawnT = (0.85 - 0.4 * p) * (0.7 + Math.random() * 0.6); }
+      for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i]; it.y += it.vy * dt; it.rot += it.vr * dt;
+        if (it.y > bowl.y - 6 && it.y < bowl.y + 34 && Math.abs(it.x - bowl.x) < bowl.w / 2 + 4) { catchItem(it, false); continue; }
+        if (it.y > H + 60) { items.splice(i, 1); if (!it.k.bad && combo) { combo = 0; el.combo.hidden = true; } }
+      }
+      el.time.textContent = Math.max(0, Math.ceil(timeLeft));
+      el.fill.style.transform = 'scaleX(' + Math.max(0, timeLeft / DURATION) + ')';
+      el.timer.classList.toggle('low', timeLeft < 10);
+      if (timeLeft <= 0) endGame();
+    }
+    bowl.x += (bowl.tx - bowl.x) * Math.min(1, dt * 18);
+
+    let o = 0;
+    for (let i = flying.length - 1; i >= 0; i--) {
+      const f = flying[i]; f.t += dt / f.dur;
+      const t = Math.min(1, f.t), e = t * t * (3 - 2 * t);
+      f.x = f.x0 + (MOUTH.x - f.x0) * e; f.y = f.y0 + (MOUTH.y - f.y0) * e - Math.sin(Math.PI * t) * 110;
+      if (t > 0.45) o = Math.max(o, (t - 0.45) / 0.55);
+      if (f.t >= 1) {
+        flying.splice(i, 1); chompT = 0;
+        pop(MOUTH.x + (Math.random() - 0.5) * 60, MOUTH.y - 80, (f.gold ? 'мяу-у! ' : pick(YUM) + ' ') + '+' + f.pts, f.gold ? '#ffd23f' : '#ffffff');
+        sparkle(MOUTH.x, MOUTH.y, f.gold ? 14 : 7, f.gold ? '#ffd23f' : '#ffffff');
+        sfx(300, 0.09, 'square', 0.04, -120);
+      }
+    }
+    open += (o - open) * Math.min(1, dt * 20);
+    for (let i = pops.length - 1; i >= 0; i--) { const p = pops[i]; p.life -= dt / 0.9; p.y -= 60 * dt; if (p.life <= 0) pops.splice(i, 1); }
+    for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.life -= dt / 0.6; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 400 * dt; if (p.life <= 0) parts.splice(i, 1); }
+  }
+
+  /* draw */
+  function drawCat() {
+    const pulse = Math.sin(Math.PI * chompT) * (chompT < 1 ? 1 : 0);
+    const s = 1.012 + 0.006 * Math.sin(clock * 1.6) + 0.07 * pulse + 0.03 * open;
+    const shake = RM ? 0 : Math.sin(clock * 70) * 9 * (1 - yuckT) * (yuckT < 1 ? 1 : 0);
+    ctx.save();
+    ctx.translate(MOUTH.x + shake, MOUTH.y); ctx.rotate(RM ? 0 : Math.sin(clock * 0.9) * 0.004 - 0.012 * pulse);
+    ctx.scale(s, s); ctx.translate(-MOUTH.x, -MOUTH.y);
+    /* closed mouth by default; open photo fades in when food approaches, on a meow, or on a bad catch */
+    const oa = Math.min(1, Math.max(open, mode === 'play' ? 0 : pulse, yuckT < 1 ? 1 : 0));
+    ctx.fillStyle = '#8d8f93'; ctx.fillRect(0, 0, W, H);
+    if (img2Ok) ctx.drawImage(img2, -10, -10, W + 20, H + 20);
+    if (imgOk && (oa > 0.01 || !img2Ok)) { ctx.globalAlpha = img2Ok ? oa : 1; ctx.drawImage(img, -10, -10, W + 20, H + 20); ctx.globalAlpha = 1; }
+    ctx.restore();
+    const g = ctx.createLinearGradient(0, 0, 0, 150); g.addColorStop(0, 'rgba(0,0,0,0.30)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, 150);
+  }
+  function emoji(e, x, y, size, rot, scale) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0); ctx.scale(scale || 1, scale || 1);
+    ctx.font = size + 'px ' + EMOJI; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(e, 0, 2); ctx.restore();
+  }
+  function drawBowl() {
+    const w = bowl.w, sq = Math.sin(Math.PI * bowl.sq) * 0.13 * (bowl.sq < 1 ? 1 : 0);
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.ellipse(bowl.x, bowl.y + 76, w * 0.46, 10, 0, 0, 7); ctx.fill();
+    ctx.translate(bowl.x, bowl.y); ctx.scale(1 + sq, 1 - sq);
+    const g = ctx.createLinearGradient(0, 0, 0, 68); g.addColorStop(0, '#ff7a52'); g.addColorStop(1, '#e03f26');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-w / 2, 0);
+    ctx.bezierCurveTo(-w / 2, 48, -w / 4, 68, 0, 68); ctx.bezierCurveTo(w / 4, 68, w / 2, 48, w / 2, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.ellipse(-w * 0.26, 34, 9, 18, 0.5, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ffb199'; ctx.beginPath(); ctx.ellipse(0, 0, w / 2, 15, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#7a2412'; ctx.beginPath(); ctx.ellipse(0, 2, w / 2 - 9, 10, 0, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  function drawText(text, x, y, size, color, alpha) {
+    ctx.save(); ctx.globalAlpha = alpha; ctx.font = '800 ' + size + 'px Unbounded, "Arial Black", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = 7;
+    ctx.strokeStyle = 'rgba(20,20,24,0.8)'; ctx.strokeText(text, x, y); ctx.fillStyle = color; ctx.fillText(text, x, y); ctx.restore();
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    drawCat();
+    for (const f of flying) emoji(f.e, f.x, f.y, 60, f.t * 6, 1 - 0.4 * Math.min(1, f.t));
+    for (const it of items) {
+      if (it.k.gold) { ctx.save(); ctx.shadowColor = '#ffd23f'; ctx.shadowBlur = 28; emoji(it.k.e, it.x, it.y, 66, it.rot); ctx.restore(); }
+      else emoji(it.k.e, it.x, it.y, 64, it.rot);
+    }
+    drawBowl();
+    for (const p of parts) { ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, 7); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    for (const p of pops) drawText(p.text, Math.max(110, Math.min(W - 110, p.x)), p.y, 26, p.color, Math.min(1, p.life * 1.6));
+    if (flash > 0) { ctx.fillStyle = 'rgba(255,40,40,' + (flash * 0.28) + ')'; ctx.fillRect(0, 0, W, H); }
+  }
+
+  let last = performance.now();
+  function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+})();
+</script><script>if('serviceWorker' in navigator && !window.Capacitor && /^https?:/.test(location.protocol)){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}</script>
+</body></html>
